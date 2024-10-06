@@ -20,8 +20,8 @@
     (if (some #(= id (:id %)) @transactions)
       (let [balance (reduce (fn [acc transaction]
                               (cond
-                                (and (= 1 (:id transaction)) (= "credit" (:type transaction))) (+ acc (:value transaction))
-                                (and (= 1 (:id transaction)) (= "debit" (:type transaction))) (- acc (:value transaction))
+                                (and (= id (:id transaction)) (= "credit" (:type transaction))) (+ acc (:value transaction))
+                                (and (= id (:id transaction)) (= "debit" (:type transaction))) (- acc (:value transaction))
                                 :else acc))
                             0 @transactions)]
         {:status 200
