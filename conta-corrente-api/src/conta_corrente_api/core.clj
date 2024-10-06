@@ -5,47 +5,33 @@
             [ring.middleware.json :refer [wrap-json-body wrap-json-response]]
             [ring.middleware.defaults :refer [site-defaults wrap-defaults]]))
 
-(def accounts (atom []))
+(def transactions (atom []))
 
-(defn add-new-account [request]
-  (let [account (:body request)]
-    (swap! accounts conj account)
+; {:id 1 :value 1000.0 :type "credit"}
+; {:id 1 :value 1000.0 :type "debit"}
+(defn transaction [request]
+  (let [transaction (:body request)]
+    (swap! transactions conj transaction)
     {:status 201
-     :body account}))
-
-(defn deposit [request]
-  (let [id (Integer/parseInt (get-in request [:params :id]))
-        value (:body request)]
-    (if (some #(= id (:id %)) @accounts)
-      (let [account (first (filter #(= id (:id %)) @accounts))
-            updated-balance (+ (get account :balance) (:value value))
-            account-updated (assoc account :balance updated-balance)]
-        (swap! account conj account-updated)
-        {:status 200
-         :body account-updated})
-      {:status 404
-       :body {:error "Account not found"}})))
-
-(defn withdraw [request]
-  (let [id (Integer/parseInt (get-in request [:params :id]))
-        withdraw (:body request)]
-    {:status 200
-     :body {}}))
+     :body transaction}))
 
 (defn account-balance [request]
   (let [id (Integer/parseInt (get-in request [:params :id]))]
-    (if (some #(= id (:id %)) @accounts)
-      (let [balance (get (first (filter #(= id (:id %)) @accounts)) :balance)]
+    (if (some #(= id (:id %)) @transactions)
+      (let [balance (reduce (fn [acc transaction]
+                              (cond
+                                (and (= 1 (:id transaction)) (= "credit" (:type transaction))) (+ acc (:value transaction))
+                                (and (= 1 (:id transaction)) (= "debit" (:type transaction))) (- acc (:value transaction))
+                                :else acc))
+                            0 @transactions)]
         {:status 200
          :body   {:balance balance}})
       {:status 404
-       :body {:error "Account not found"}})))
+       :body   {:error "Account not found"}})))
 
 (defroutes app-routes
            (GET "/balance/:id" [] account-balance)
-           (POST "/new" [] add-new-account)
-           (PUT "/deposit/:id" [] deposit)
-           (PUT "/withdraw/:id" [] withdraw)
+           (POST "/transaction" [] transaction)
            (route/not-found "Not Found"))
 
 (def app
